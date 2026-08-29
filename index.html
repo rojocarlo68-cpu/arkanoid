@@ -496,14 +496,15 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var INV_SLOTS = 5;
   var ITEM_INFO = {
     heart: { name: "Corazón", hint: "+1 vida", glyph: "♥", price: 400, tint: "#ff4d8d" },
-    shield: { name: "Escudo", hint: "Cubre 1 disparo", glyph: "◈", price: 350, tint: "#5ce1ff" },
+    shield: { name: "Escudo", hint: "Barrera 3 golpes", glyph: "▬", price: 350, tint: "#c8d0d8" },
     wide: { name: "Paleta XL", hint: "Paleta más ancha", glyph: "▬", price: 300, tint: "#ffe066" },
     bomb: { name: "Bomba", hint: "50% daño · úsala y luego clic", glyph: "●", price: 700, tint: "#ff6a2a" }
   };
   var SHOP_IDS = ["heart", "shield", "wide", "bomb"];
   var inventory = [null, null, null, null, null];
   var saveFlashT = 0;
-  var shieldCharges = 0;
+  var barrierHP = 0;
+  var BARRIER_H = 12;
   var paddleBonus = 0;
   var bombsReady = 0;
   var playerBombs = [];
@@ -629,7 +630,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       return;
     }
     if (id === "shield") {
-      shieldCharges += 1;
+      barrierHP = 3;
       inventory[i] = null;
       renderBag();
       beep(880, 0.07, "square", 0.04);
@@ -677,7 +678,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       score: score,
       lifePoints: lifePoints,
       inventory: inventory.slice(),
-      shieldCharges: shieldCharges,
+      barrierHP: barrierHP,
       paddleBonus: paddleBonus,
       bombsReady: bombsReady
     };
@@ -707,7 +708,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     level = Math.max(1, Math.min(MAX_LEVELS, data.level | 0));
     score = Math.max(0, data.score | 0);
     lifePoints = Math.max(0, data.lifePoints | 0);
-    shieldCharges = Math.max(0, data.shieldCharges | 0);
+    barrierHP = Math.max(0, Math.min(3, data.barrierHP | 0));
     paddleBonus = Math.max(0, data.paddleBonus | 0);
     bombsReady = Math.max(0, data.bombsReady | 0);
     playerBombs = [];
@@ -957,7 +958,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     paddle.x = W / 2;
     paddle.vx = 0;
     inventory = emptyInv();
-    shieldCharges = 0;
+    barrierHP = 0;
     paddleBonus = 0;
     bombsReady = 0;
     playerBombs = [];
@@ -1091,12 +1092,6 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   }
 
   function loseLifePoints(n, resetBall, hx, hy) {
-    if (!resetBall && shieldCharges > 0) {
-      shieldCharges -= 1;
-      spawnParticles(hx != null ? hx : paddle.x, hy != null ? hy : PADDLE_Y, "#5ce1ff", 14);
-      beep(980, 0.08, "square", 0.045);
-      return;
-    }
     lifePoints -= n;
     if (lifePoints < 0) lifePoints = 0;
     syncLives();
@@ -1318,16 +1313,16 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var FIGHTER_DRAW_ORDER = ["tail","engL","engR","hull","wingL","wingR","cockpit","nose"];
   var FIGHTER_BODY_IDS = ["hull","engL","engR","wingL","wingR","tail"];
 
-  var CARRIER_W = 340;
-  var CARRIER_H = 510;
-  var CARRIER_BASE_Y = 40;
+  var CARRIER_W = 300;
+  var CARRIER_H = 440;
+  var CARRIER_BASE_Y = 52;
   var CARRIER_PART_DEFS = [
-    { id: "bridge", fx: 0.36, fy: 0.00, fw: 0.34, fh: 0.11, glass: true },
-    { id: "deck",   fx: 0.16, fy: 0.09, fw: 0.64, fh: 0.13, glass: true },
-    { id: "pipes",  fx: 0.06, fy: 0.22, fw: 0.38, fh: 0.30 },
-    { id: "hangar", fx: 0.56, fy: 0.26, fw: 0.40, fh: 0.34 },
-    { id: "sensor", fx: 0.60, fy: 0.12, fw: 0.30, fh: 0.14 },
-    { id: "keel",   fx: 0.20, fy: 0.66, fw: 0.46, fh: 0.28 }
+    { id: "bridge", fx: 0.10, fy: 0.00, fw: 0.48, fh: 0.13, glass: true },
+    { id: "deck",   fx: 0.02, fy: 0.11, fw: 0.52, fh: 0.14, glass: true },
+    { id: "pipes",  fx: 0.00, fy: 0.24, fw: 0.46, fh: 0.28 },
+    { id: "hangar", fx: 0.04, fy: 0.50, fw: 0.44, fh: 0.22 },
+    { id: "sensor", fx: 0.00, fy: 0.12, fw: 0.24, fh: 0.16 },
+    { id: "keel",   fx: 0.04, fy: 0.72, fw: 0.52, fh: 0.24 }
   ];
   var CARRIER_HIT_ORDER = ["bridge","deck","sensor","pipes","hangar","keel"];
   var CARRIER_DRAW_ORDER = ["keel","pipes","hangar","deck","sensor","bridge"];
@@ -1386,7 +1381,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
         kind: "carrier",
         w: CARRIER_W,
         h: CARRIER_H,
-        x: W - CARRIER_W - 8,
+        x: W - CARRIER_W - 48,
         baseY: CARRIER_BASE_Y,
         dir: 1,
         speed: 0,
@@ -2457,7 +2452,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
         minX = 16;
         maxX = W - 16 - robot.w;
         if (robot.kind === "carrier") {
-          robot.x = W - robot.w - 8;
+          robot.x = W - robot.w - 48;
           robot.bobT += dt;
           robot.y = robot.baseY + Math.sin(robot.bobT * robot.bobHz) * robot.bobAmp;
         } else if (robot.ai) {
@@ -2985,6 +2980,11 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       collideBricks();
       if (state !== "play") return;
 
+      if (barrierHP > 0 && ball.vy > 0 && ball.y + BALL_R >= barrierY()) {
+        hitBarrier();
+        if (state !== "play") return;
+        continue;
+      }
       if (ball.y - BALL_R > H) {
         loseLife();
         return;
@@ -3164,11 +3164,11 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       ctx.fillStyle = "#ff9a4a";
       ctx.fillText("BOMBA x" + bombsReady, 140, 17);
     }
-    if (shieldCharges > 0) {
+    if (barrierHP > 0) {
       ctx.textAlign = "right";
-      ctx.font = "700 14px Segoe UI, Helvetica Neue, sans-serif";
-      ctx.fillStyle = "#5ce1ff";
-      ctx.fillText("◈" + shieldCharges, W - 18 - shown * 20 - 10, 17);
+      ctx.font = "700 12px Segoe UI, Helvetica Neue, sans-serif";
+      ctx.fillStyle = "#c8d0d8";
+      ctx.fillText("BARRA " + barrierHP, W - 18 - shown * 20 - 10, 17);
     }
     if (state === "play" && ball.stuck) {
       ctx.textAlign = "center";
@@ -3321,6 +3321,88 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     }
   }
 
+  function barrierY() {
+    return H - 8 - BARRIER_H;
+  }
+
+  function hitBarrier() {
+    var by = barrierY();
+    ball.vy = -Math.abs(ball.vy);
+    if (Math.abs(ball.vy) < 160) ball.vy = -160;
+    ball.y = by - BALL_R - 0.5;
+    barrierHP -= 1;
+    spawnParticles(ball.x, by, "#b8c0c8", 10);
+    spawnParticles(ball.x, by, "#ff9a3a", 6);
+    beep(140, 0.06, "square", 0.04);
+    shake = Math.max(shake, 5);
+    if (barrierHP <= 0) {
+      barrierHP = 0;
+      spawnParticles(W / 2, by, "#ff6a2a", 18);
+      spawnParticles(W * 0.25, by, "#c8d0d8", 12);
+      spawnParticles(W * 0.75, by, "#c8d0d8", 12);
+      spawnSmokePuff(ball.x, by, true);
+      shake = Math.max(shake, 9);
+      beep(90, 0.14, "sawtooth", 0.05);
+    }
+  }
+
+  function drawBarrier() {
+    var y, dmg, i, x, crack, a;
+    if (barrierHP <= 0) return;
+    y = barrierY();
+    dmg = 3 - barrierHP;
+    ctx.save();
+    ctx.fillStyle = dmg === 0 ? "#6a7380" : dmg === 1 ? "#5a4e46" : "#4a3a34";
+    ctx.fillRect(8, y, W - 16, BARRIER_H);
+    var g = ctx.createLinearGradient(8, y, 8, y + BARRIER_H);
+    g.addColorStop(0, dmg === 0 ? "#c5cdd6" : dmg === 1 ? "#9a8e82" : "#6a5850");
+    g.addColorStop(0.45, dmg === 0 ? "#8a949e" : dmg === 1 ? "#6a6058" : "#4a3c38");
+    g.addColorStop(1, "#2a2e34");
+    ctx.fillStyle = g;
+    ctx.fillRect(8, y, W - 16, BARRIER_H);
+    ctx.fillStyle = "#ff7a2a";
+    ctx.fillRect(8, y + 1, W - 16, 2);
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.fillRect(8, y + 3, W - 16, 2);
+    for (i = 0; i < 14; i++) {
+      x = 18 + i * ((W - 36) / 13);
+      ctx.beginPath();
+      ctx.arc(x, y + BARRIER_H * 0.55, 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = "#1a1c1e";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x - 0.5, y + BARRIER_H * 0.55 - 0.5, 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = "#d8dce0";
+      ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(12,10,8,0.7)";
+    ctx.lineWidth = 1.4;
+    for (i = 0; i < dmg * 5; i++) {
+      crack = 30 + i * 70 + (i * 37) % 40;
+      ctx.beginPath();
+      ctx.moveTo(crack, y + 1);
+      ctx.lineTo(crack + 8, y + BARRIER_H - 1);
+      ctx.lineTo(crack + 18, y + 3);
+      ctx.stroke();
+    }
+    if (dmg >= 1) {
+      ctx.fillStyle = "rgba(8,6,4,0.45)";
+      for (i = 0; i < dmg * 3; i++) {
+        ctx.fillRect(40 + i * 90, y + 3, 16 + dmg * 6, BARRIER_H - 5);
+      }
+    }
+    if (dmg >= 2) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(120, y + 2, 28, BARRIER_H - 3);
+      ctx.fillRect(420, y + 1, 22, BARRIER_H - 2);
+      ctx.fillRect(620, y + 3, 34, BARRIER_H - 4);
+    }
+    ctx.strokeStyle = "#1a1c20";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(8.5, y + 0.5, W - 17, BARRIER_H - 1);
+    ctx.restore();
+  }
+
   function drawPaddle() {
     var x = paddle.x - paddle.w / 2;
     ctx.save();
@@ -3400,6 +3482,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       try { drawShots(); } catch (e) { noteArkErr("drawShots", e); }
       try { drawPlayerBombs(); } catch (e) { noteArkErr("drawPlayerBombs", e); }
       try { drawPaddle(); } catch (e) { noteArkErr("drawPaddle", e); }
+      try { drawBarrier(); } catch (e) { noteArkErr("drawBarrier", e); }
       try { drawBall(); } catch (e) { noteArkErr("drawBall", e); }
       try { drawFx(); } catch (e) { noteArkErr("drawFx", e); }
       try { drawHud(); } catch (e) { noteArkErr("drawHud", e); }
