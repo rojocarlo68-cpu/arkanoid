@@ -870,7 +870,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var FIGHTER_H = 47;
   var FIGHTER_SPEED_MUL = 2.2;
   var FIGHTER_PART_DEFS = [
-    { id: "nose",     fx: 0.26, fy: 0.80, fw: 0.48, fh: 0.20, head: true, glass: true },
+    { id: "nose",     fx: 0.26, fy: 0.80, fw: 0.48, fh: 0.20, glass: true },
     { id: "cockpit",  fx: 0.32, fy: 0.64, fw: 0.36, fh: 0.18, glass: true },
     { id: "hull",     fx: 0.28, fy: 0.28, fw: 0.44, fh: 0.36 },
     { id: "engL",     fx: 0.06, fy: 0.16, fw: 0.34, fh: 0.32 },
@@ -1620,7 +1620,11 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
         ball.vy *= -1;
         ball.y += ball.vy > 0 ? overlapY : -overlapY;
       }
+      if (robot.kind === "fighter" && robot.hitLockUntil && nowMs() < robot.hitLockUntil) {
+        return true;
+      }
       hitRobotPart(def, part);
+      if (robot.kind === "fighter") robot.hitLockUntil = nowMs() + 180;
       return true;
     }
     return false;
