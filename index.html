@@ -316,6 +316,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
           <p class="kicker">MOCHILA</p>
           <h2>Inventario</h2>
           <p class="msg">5 espacios. Toca un artículo para usarlo.</p>
+          <p id="bag-status" class="shop-status"></p>
           <div id="bag-slots" class="slots"></div>
           <button type="button" id="bag-close">Cerrar</button>
         </div>
@@ -343,7 +344,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var PADDLE_Y = H - 34;
   var BRICK_GAP = 5;
   var LIVES0 = 3;
-  var MAX_LIVES = 6;
+  var MAX_LIVES = 4;
   var MAX_LEVELS = 7;
   var START_LEVEL = 1;
 
@@ -526,6 +527,19 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     return false;
   }
 
+  function setBagStatus(t, warn) {
+    var el = document.getElementById("bag-status");
+    if (!el) {
+      el = document.createElement("p");
+      el.id = "bag-status";
+      el.className = "shop-status";
+      if (bagSlots && bagSlots.parentNode) bagSlots.parentNode.insertBefore(el, bagSlots);
+    }
+    el.textContent = t || "";
+    el.style.color = warn ? "#ff4d8d" : "";
+    el.style.fontWeight = warn ? "800" : "";
+  }
+
   function renderBag() {
     var i, id, info, btn;
     if (!bagSlots) return;
@@ -548,6 +562,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
   function openBag() {
     closeShop();
+    setBagStatus("");
     renderBag();
     if (bagPanel) bagPanel.classList.remove("hidden");
   }
@@ -621,11 +636,16 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     var spec;
     if (!id) return;
     if (id === "heart") {
-      if (lifePoints >= MAX_LIVES * 100) return;
+      if (lifePoints >= MAX_LIVES * 100) {
+        setBagStatus("Máximo de vida", true);
+        beep(160, 0.08, "square", 0.04);
+        return;
+      }
       lifePoints = Math.min(MAX_LIVES * 100, lifePoints + 100);
       syncLives();
       inventory[i] = null;
       renderBag();
+      setBagStatus("");
       beep(520, 0.08, "square", 0.04);
       return;
     }
@@ -707,7 +727,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     if (!data || data.v !== 1) return false;
     level = Math.max(1, Math.min(MAX_LEVELS, data.level | 0));
     score = Math.max(0, data.score | 0);
-    lifePoints = Math.max(0, data.lifePoints | 0);
+    lifePoints = Math.max(0, Math.min(MAX_LIVES * 100, data.lifePoints | 0));
     barrierHP = Math.max(0, Math.min(3, data.barrierHP | 0));
     paddleBonus = Math.max(0, data.paddleBonus | 0);
     bombsReady = Math.max(0, data.bombsReady | 0);
@@ -2643,73 +2663,65 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   }
 
   function drawGutsOverlay(rect, seed, hits) {
-    var k, a, b, c, n;
+    var k, x, y, w, h, step, a, b, c;
+    w = rect.w;
+    h = rect.h;
+    x = rect.x;
+    y = rect.y;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.rect(x, y, w, h);
     ctx.clip();
-    ctx.fillStyle = "rgba(12,10,8,0.72)";
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    n = 7;
-    for (k = 0; k < n; k++) {
-      a = brickNoise(seed + k * 19);
-      b = brickNoise(seed + k * 29 + 4);
-      c = brickNoise(seed + k * 41 + 8);
-      ctx.strokeStyle = k % 2 ? "#5ce1ff" : "#3aa0c8";
-      ctx.lineWidth = 1.1;
+    ctx.fillStyle = "#1a1e24";
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#2a323c";
+    ctx.fillRect(x + w * 0.42, y + 1, Math.max(3, w * 0.16), h - 2);
+    ctx.strokeStyle = "#4a5560";
+    ctx.lineWidth = 0.8;
+    step = Math.max(7, h / 6);
+    for (k = 1; k < 6; k++) {
       ctx.beginPath();
-      ctx.moveTo(rect.x + 2 + a * (rect.w - 4), rect.y + 2);
-      ctx.lineTo(rect.x + 2 + b * (rect.w - 4), rect.y + rect.h - 2);
-      ctx.stroke();
-      ctx.strokeStyle = "#c45a20";
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(rect.x + 4 + c * (rect.w - 8), rect.y + 3);
-      ctx.quadraticCurveTo(rect.x + rect.w * 0.5, rect.y + rect.h * (0.3 + b * 0.4), rect.x + 6 + a * (rect.w - 12), rect.y + rect.h - 2);
+      ctx.moveTo(x + 3, y + k * step);
+      ctx.lineTo(x + w - 3, y + k * step);
       ctx.stroke();
     }
-    ctx.fillStyle = "rgba(255,154,58,0.35)";
-    for (k = 0; k < 4; k++) {
-      a = brickNoise(seed + 400 + k * 7);
-      b = brickNoise(seed + 420 + k * 9);
+    ctx.strokeStyle = "#3a4450";
+    ctx.lineWidth = 0.7;
+    ctx.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
+    ctx.fillStyle = "#5a6570";
+    for (k = 0; k < 3; k++) {
       ctx.beginPath();
-      ctx.arc(rect.x + 6 + a * (rect.w - 12), rect.y + 6 + b * (rect.h - 12), 2.2, 0, Math.PI * 2);
+      ctx.arc(x + w * 0.5, y + 8 + k * (h * 0.28), 2.1, 0, Math.PI * 2);
       ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + w * 0.5 - 0.5, y + 7.4 + k * (h * 0.28), 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = "#c8d0d8";
+      ctx.fill();
+      ctx.fillStyle = "#5a6570";
+    }
+    ctx.strokeStyle = "#2c241c";
+    ctx.lineWidth = 0.55;
+    ctx.lineCap = "round";
+    for (k = 0; k < 3; k++) {
+      a = brickNoise(seed + k * 17);
+      b = brickNoise(seed + k * 29 + 3);
+      c = brickNoise(seed + k * 41 + 8);
+      ctx.beginPath();
+      ctx.moveTo(x + 4 + a * (w * 0.3), y + 4 + b * (h * 0.3));
+      ctx.quadraticCurveTo(x + w * (0.35 + c * 0.3), y + h * (0.35 + a * 0.3), x + w * 0.62 + b * 6, y + h - 5 - c * 8);
+      ctx.stroke();
     }
     if (hits >= 3) {
-      ctx.fillStyle = "rgba(8,6,4,0.55)";
+      ctx.fillStyle = "rgba(8,8,10,0.35)";
       ctx.beginPath();
-      ctx.ellipse(rect.x + rect.w * 0.45, rect.y + rect.h * 0.4, rect.w * 0.18, rect.h * 0.16, 0.4, 0, Math.PI * 2);
+      ctx.ellipse(x + w * 0.5, y + h * 0.42, w * 0.14, h * 0.1, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
   }
 
   function drawMechaCracks(rect, intensity, seed) {
-    var k, a, b, c, n;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(rect.x, rect.y, rect.w, rect.h);
-    ctx.clip();
-    n = 4 + intensity * 5;
-    ctx.strokeStyle = "rgba(6,4,2,0.8)";
-    ctx.lineWidth = 1.2 + intensity * 0.4;
-    ctx.lineCap = "round";
-    for (k = 0; k < n; k++) {
-      a = brickNoise(seed + k * 23);
-      b = brickNoise(seed + k * 37 + 5);
-      c = brickNoise(seed + k * 53 + 11);
-      ctx.beginPath();
-      ctx.moveTo(rect.x + a * rect.w, rect.y + b * rect.h);
-      ctx.lineTo(rect.x + c * rect.w, rect.y + ((a + b) * 0.5) * rect.h);
-      ctx.lineTo(rect.x + ((a + c) * 0.5) * rect.w, rect.y + c * rect.h);
-      ctx.stroke();
-    }
-    if (intensity >= 2) {
-      ctx.fillStyle = "rgba(20,12,8,0.35)";
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    }
-    ctx.restore();
+    drawDentOverlay(rect, intensity >= 3 ? 2 : 1, seed);
   }
 
   function drawDentOverlay(rect, intensity, seed) {
@@ -2981,18 +2993,19 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
             if (part.hits < robot.breakHits) {
               if (gfxReady(armor)) drawRobotImageClipped(armor, r);
               if (part.hits > 0) {
-                try { drawDentOverlay(r, part.hits >= 2 ? 2 : 1, seed); } catch (errDent) {}
-                try { drawMechaCracks(r, part.hits, seed); } catch (errCr) {}
+                try { drawDentOverlay(r, part.hits >= 3 ? 2 : 1, seed); } catch (errDent) {}
               }
               if (part.hits >= robot.circuitsHits) {
-                ctx.save();
-                ctx.globalAlpha = 0.45;
-                if (gfxReady(circuits)) drawRobotImageClipped(circuits, r);
-                ctx.restore();
                 try { drawGutsOverlay(r, seed, part.hits); } catch (errGutsPeek) {}
+                if (gfxReady(armor)) {
+                  ctx.save();
+                  ctx.globalAlpha = 0.55;
+                  drawRobotImageClipped(armor, r);
+                  ctx.restore();
+                  try { drawDentOverlay(r, 2, seed); } catch (errDent2) {}
+                }
               }
             } else {
-              if (gfxReady(circuits)) drawRobotImageClipped(circuits, r);
               try { drawGutsOverlay(r, seed, part.hits); } catch (errGuts) {}
             }
           }
@@ -3355,7 +3368,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     ctx.fillText("Nivel " + level, W / 2, 17);
 
     var i, shown, hx, q;
-    shown = Math.max(LIVES0, Math.ceil(lifePoints / 100));
+    shown = Math.min(MAX_LIVES, Math.max(LIVES0, Math.ceil(lifePoints / 100)));
     for (i = 0; i < shown; i++) {
       hx = W - 18 - (shown - 1 - i) * 20;
       q = lifePoints - i * 100;
