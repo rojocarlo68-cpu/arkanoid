@@ -2662,6 +2662,36 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     }
   }
 
+  function drawDentsOnly(rect, hits, seed) {
+    var k, n, a, b, cx, cy, rw, rh;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    n = Math.min(10, 2 + hits * 2);
+    for (k = 0; k < n; k++) {
+      a = brickNoise(seed + k * 17);
+      b = brickNoise(seed + 90 + k * 13);
+      cx = rect.x + 6 + a * (rect.w - 12);
+      cy = rect.y + 6 + b * (rect.h - 12);
+      rw = 3.5 + brickNoise(seed + 200 + k) * 5.5;
+      rh = 2.2 + brickNoise(seed + 260 + k) * 3.5;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rw, rh, a * 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(12,10,8,0.42)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx - rw * 0.25, cy - rh * 0.28, rw * 0.45, rh * 0.4, a * 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx + rw * 0.18, cy + rh * 0.2, rw * 0.35, rh * 0.28, a * 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(220,210,195,0.18)";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function drawGutsOverlay(rect, seed, hits) {
     var k, x, y, w, h, step, a, b, c;
     w = rect.w;
@@ -2672,10 +2702,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    ctx.fillStyle = "#1a1e24";
-    ctx.fillRect(x, y, w, h);
     ctx.fillStyle = "#2a323c";
-    ctx.fillRect(x + w * 0.42, y + 1, Math.max(3, w * 0.16), h - 2);
+    ctx.fillRect(x + w * 0.44, y + h * 0.12, Math.max(2, w * 0.12), h * 0.76);
     ctx.strokeStyle = "#4a5560";
     ctx.lineWidth = 0.8;
     step = Math.max(7, h / 6);
@@ -2685,9 +2713,6 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       ctx.lineTo(x + w - 3, y + k * step);
       ctx.stroke();
     }
-    ctx.strokeStyle = "#3a4450";
-    ctx.lineWidth = 0.7;
-    ctx.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
     ctx.fillStyle = "#5a6570";
     for (k = 0; k < 3; k++) {
       ctx.beginPath();
@@ -2993,17 +3018,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
             if (part.hits < robot.breakHits) {
               if (gfxReady(armor)) drawRobotImageClipped(armor, r);
               if (part.hits > 0) {
-                try { drawDentOverlay(r, part.hits >= 3 ? 2 : 1, seed); } catch (errDent) {}
-              }
-              if (part.hits >= robot.circuitsHits) {
-                try { drawGutsOverlay(r, seed, part.hits); } catch (errGutsPeek) {}
-                if (gfxReady(armor)) {
-                  ctx.save();
-                  ctx.globalAlpha = 0.55;
-                  drawRobotImageClipped(armor, r);
-                  ctx.restore();
-                  try { drawDentOverlay(r, 2, seed); } catch (errDent2) {}
-                }
+                try { drawDentsOnly(r, part.hits, seed); } catch (errDent) {}
               }
             } else {
               try { drawGutsOverlay(r, seed, part.hits); } catch (errGuts) {}
