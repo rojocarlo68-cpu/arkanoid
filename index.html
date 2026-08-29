@@ -372,6 +372,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var partBreaksThisLevel = 0;
   var heartDropOnBreak = 0;
   var bombs = [];
+  var shots = [];
   var lifePoints = LIVES0 * 100;
 
   function nowMs() {
@@ -503,6 +504,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     smokePuffs = [];
     heartDrops = [];
     bombs = [];
+    shots = [];
     heartDroppedThisLevel = false;
     partBreaksThisLevel = 0;
     heartDropOnBreak = 2 + ((Math.random() * 5) | 0);
@@ -525,6 +527,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     lives = LIVES0;
     lifePoints = LIVES0 * 100;
     bombs = [];
+    shots = [];
     level = START_LEVEL;
     combo = 0;
     particles = [];
@@ -910,6 +913,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       speed: mechaSpeed * FIGHTER_SPEED_MUL,
       bobAmp: 6,
       bobHz: 2.2,
+      shotCd: 1.2,
       bodyHits: 8,
       breakHits: 5,
       circuitsHits: 3,
@@ -1779,6 +1783,60 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     }
   }
 
+
+  function spawnFighterShot(r) {
+    if (!r || !r.alive) return;
+    if (shots.length > 6) return;
+    var cx = r.x + r.w / 2;
+    var y = r.y + r.h - 4;
+    shots.push({ x: cx - 7, y: y, vy: 290, w: 3, h: 11 });
+    shots.push({ x: cx + 4, y: y, vy: 290, w: 3, h: 11 });
+    beep(540, 0.04, "square", 0.028);
+  }
+
+  function shotHitsPaddle(sh) {
+    var left = paddle.x - paddle.w / 2;
+    var right = paddle.x + paddle.w / 2;
+    return (
+      sh.y + sh.h >= PADDLE_Y &&
+      sh.y <= PADDLE_Y + PADDLE_H &&
+      sh.x + sh.w >= left &&
+      sh.x <= right
+    );
+  }
+
+  function updateShots(dt) {
+    var i, sh;
+    try {
+      for (i = shots.length - 1; i >= 0; i--) {
+        sh = shots[i];
+        sh.y += sh.vy * dt;
+        if (shotHitsPaddle(sh)) {
+          shots.splice(i, 1);
+          if (state === "play") loseLifePoints(25, false, sh.x, PADDLE_Y);
+          continue;
+        }
+        if (sh.y > H + 16) shots.splice(i, 1);
+      }
+    } catch (e) {
+      noteArkErr("updateShots", e);
+      shots = [];
+    }
+  }
+
+  function drawShots() {
+    var i, sh;
+    for (i = 0; i < shots.length; i++) {
+      sh = shots[i];
+      ctx.save();
+      ctx.shadowColor = "#ff6a2a";
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "#ffd080";
+      ctx.fillRect(sh.x, sh.y, sh.w, sh.h);
+      ctx.restore();
+    }
+  }
+
   function updateRobot(dt) {
     var k, minX, maxX;
     if (!robots.length) return;
@@ -1803,6 +1861,13 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
             if (robot.bombCd <= 0 && state === "play") {
               spawnEnemyBomb(robot);
               robot.bombCd = 2.1 + Math.random() * 1.7;
+            }
+          }
+          if (robot.kind === "fighter") {
+            robot.shotCd -= dt;
+            if (robot.shotCd <= 0 && state === "play" && !ball.stuck) {
+              spawnFighterShot(robot);
+              robot.shotCd = 1.35 + Math.random() * 0.75;
             }
           }
           if (robot.x < minX) robot.x = minX;
@@ -2215,7 +2280,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       return;
     }
 
-    var boost = pointerActive && pointerIsMouse ? 10 : 1;
+    var boost = pointerActive && pointerIsMouse ? 5 : 1;
     var dist = ball.speed * dt * boost;
     var steps = Math.max(1, Math.ceil(dist / 5));
     var sdt = (dt * boost) / steps;
@@ -2426,13 +2491,13 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       ctx.textAlign = "left";
       ctx.font = "800 13px Segoe UI, Helvetica Neue, sans-serif";
       ctx.fillStyle = "#ffe066";
-      ctx.fillText("x10", 140, 17);
+      ctx.fillText("x5", 140, 17);
     }
     if (state === "play" && ball.stuck) {
       ctx.textAlign = "center";
       ctx.font = "600 13px Segoe UI, Helvetica Neue, sans-serif";
       ctx.fillStyle = "rgba(92,225,255," + (0.55 + 0.45 * Math.sin(nowMs() / 220)) + ")";
-      ctx.fillText("Espacio / clic / ↑  para lanzar · mantén click izq. = x10", W / 2, H - 12);
+      ctx.fillText("Espacio / clic / ↑  para lanzar · mantén click izq. = x5", W / 2, H - 12);
     }
   }
 
@@ -2655,6 +2720,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       try { drawDebris(); } catch (e) { noteArkErr("drawDebris", e); }
       try { drawHeartDrops(); } catch (e) { noteArkErr("drawHeartDrops", e); }
       try { drawBombs(); } catch (e) { noteArkErr("drawBombs", e); }
+      try { drawShots(); } catch (e) { noteArkErr("drawShots", e); }
       try { drawPaddle(); } catch (e) { noteArkErr("drawPaddle", e); }
       try { drawBall(); } catch (e) { noteArkErr("drawBall", e); }
       try { drawFx(); } catch (e) { noteArkErr("drawFx", e); }
@@ -2673,6 +2739,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       updateRobot(dt);
       stepBall(dt);
       updateBombs(dt);
+      updateShots(dt);
       updateFx(dt);
     } else {
       updateFx(dt * 0.4);
