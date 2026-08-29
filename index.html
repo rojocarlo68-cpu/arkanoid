@@ -281,7 +281,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .shop-item .price { color: #3dff7a; font-weight: 800; white-space: nowrap; }
 .shop-item.cant { opacity: 0.45; }
 .shop-cash { margin: 0 0 4px; color: #7CFFB2; font-weight: 700; }
-.shop-status { min-height: 1.2em; margin: 0 0 12px; color: var(--cyan); font-size: 13px; }
+.shop-status { min-height: 1.4em; margin: 0 0 12px; color: var(--cyan); font-size: 16px; }
   </style>
 </head>
 <body>
@@ -554,8 +554,11 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     return false;
   }
 
-  function setShopStatus(t) {
-    if (shopStatus) shopStatus.textContent = t || "";
+  function setShopStatus(t, warn) {
+    if (!shopStatus) return;
+    shopStatus.textContent = t || "";
+    shopStatus.style.color = warn ? "#ff4d8d" : "";
+    shopStatus.style.fontWeight = warn ? "800" : "";
   }
 
   function renderShop() {
@@ -595,7 +598,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       return;
     }
     if (!bagHasSpace()) {
-      setShopStatus("Mochila llena");
+      setShopStatus("¡Tu mochila está llena!", true);
       return;
     }
     score -= info.price;
