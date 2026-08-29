@@ -322,6 +322,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
   var keys = Object.create(null);
   var pointerActive = false;
+  var pointerIsMouse = false;
   var pointerX = W / 2;
   var controlMode = "key"; // key | pointer
   var launchLockUntil = 0;
@@ -2344,7 +2345,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       return;
     }
 
-    var boost = pointerActive ? 10 : 1;
+    var boost = pointerActive && pointerIsMouse ? 10 : 1;
     var dist = ball.speed * dt * boost;
     var steps = Math.max(1, Math.ceil(dist / 5));
     var sdt = (dt * boost) / steps;
@@ -2551,7 +2552,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       }
     }
 
-    if (state === "play" && pointerActive && !ball.stuck) {
+    if (state === "play" && pointerActive && pointerIsMouse && !ball.stuck) {
       ctx.textAlign = "left";
       ctx.font = "800 13px Segoe UI, Helvetica Neue, sans-serif";
       ctx.fillStyle = "#ffe066";
@@ -2824,6 +2825,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     ensureAudio();
     if (e.button !== undefined && e.button !== 0) return;
     pointerActive = true;
+    pointerIsMouse = e.pointerType === "mouse";
     controlMode = "pointer";
     var p = canvasPos(e);
     pointerX = p.x;
