@@ -251,6 +251,37 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   .slot { min-height: 56px; font-size: 10px; padding: 4px 2px; }
 }
 
+
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+.shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid #5ce1ff55;
+  background: #121a2c;
+  color: var(--text);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: none;
+  border-radius: 8px;
+}
+.shop-item .left { display: flex; align-items: center; gap: 10px; text-align: left; }
+.shop-item .hint { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+.shop-item .price { color: #3dff7a; font-weight: 800; white-space: nowrap; }
+.shop-item.cant { opacity: 0.45; }
+.shop-cash { margin: 0 0 4px; color: #7CFFB2; font-weight: 700; }
+.shop-status { min-height: 1.2em; margin: 0 0 12px; color: var(--cyan); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -274,6 +305,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V7a5 5 0 0 1 10 0v1"/><rect x="4" y="8" width="16" height="13" rx="2"/><path d="M4 12h16"/></svg>
             Mochila
           </button>
+          <button type="button" id="shop-btn" class="tool-btn">Tienda</button>
           <button type="button" id="save-btn" class="tool-btn">Guardar</button>
         </div>
         <button type="button" id="ov-btn" onclick="if(window.arkanoidStart)window.arkanoidStart(event)">Iniciar</button>
@@ -286,6 +318,16 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
           <p class="msg">5 espacios. Toca un artículo para usarlo.</p>
           <div id="bag-slots" class="slots"></div>
           <button type="button" id="bag-close">Cerrar</button>
+        </div>
+      </div>
+      <div id="shop-panel" class="bag-overlay hidden">
+        <div class="bag-card">
+          <p class="kicker">TIENDA</p>
+          <h2>Artículos</h2>
+          <p id="shop-cash" class="shop-cash">Tienes $0</p>
+          <p id="shop-status" class="shop-status"></p>
+          <div id="shop-list" class="shop-list"></div>
+          <button type="button" id="shop-close">Cerrar</button>
         </div>
       </div>
     </div>
@@ -437,13 +479,24 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var bagPanel = document.getElementById("bag-panel");
   var bagSlots = document.getElementById("bag-slots");
   var bagClose = document.getElementById("bag-close");
+  var shopBtn = document.getElementById("shop-btn");
+  var shopPanel = document.getElementById("shop-panel");
+  var shopList = document.getElementById("shop-list");
+  var shopClose = document.getElementById("shop-close");
+  var shopCash = document.getElementById("shop-cash");
+  var shopStatus = document.getElementById("shop-status");
   var SAVE_KEY = "arkanoid-carlo-v1";
   var INV_SLOTS = 5;
   var ITEM_INFO = {
-    heart: { name: "Corazón", hint: "+1 vida", glyph: "♥" }
+    heart: { name: "Corazón", hint: "+1 vida", glyph: "♥", price: 400, tint: "#ff4d8d" },
+    shield: { name: "Escudo", hint: "Cubre 1 disparo", glyph: "◈", price: 350, tint: "#5ce1ff" },
+    wide: { name: "Paleta XL", hint: "Paleta más ancha", glyph: "▬", price: 300, tint: "#ffe066" }
   };
+  var SHOP_IDS = ["heart", "shield", "wide"];
   var inventory = [null, null, null, null, null];
   var saveFlashT = 0;
+  var shieldCharges = 0;
+  var paddleBonus = 0;
 
   function emptyInv() {
     return [null, null, null, null, null];
@@ -474,7 +527,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       btn.className = "slot" + (info ? "" : " empty");
       btn.setAttribute("data-i", String(i));
       if (info) {
-        btn.innerHTML = '<span class="glyph">' + info.glyph + '</span>' + info.name;
+        btn.innerHTML = '<span class="glyph" style="color:' + (info.tint || "#ff4d8d") + '">' + info.glyph + '</span>' + info.name;
       } else {
         btn.textContent = "vacío";
       }
@@ -483,6 +536,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   }
 
   function openBag() {
+    closeShop();
     renderBag();
     if (bagPanel) bagPanel.classList.remove("hidden");
   }
@@ -491,8 +545,66 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     if (bagPanel) bagPanel.classList.add("hidden");
   }
 
+  function bagHasSpace() {
+    var i;
+    for (i = 0; i < INV_SLOTS; i++) if (!inventory[i]) return true;
+    return false;
+  }
+
+  function setShopStatus(t) {
+    if (shopStatus) shopStatus.textContent = t || "";
+  }
+
+  function renderShop() {
+    var i, id, info, btn, can;
+    if (shopCash) shopCash.textContent = "Tienes " + moneyText(score);
+    if (!shopList) return;
+    shopList.innerHTML = "";
+    for (i = 0; i < SHOP_IDS.length; i++) {
+      id = SHOP_IDS[i];
+      info = ITEM_INFO[id];
+      can = score >= info.price && bagHasSpace();
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "shop-item" + (can ? "" : " cant");
+      btn.setAttribute("data-id", id);
+      btn.innerHTML = '<span class="left"><span class="glyph" style="color:' + info.tint + '">' + info.glyph + '</span><span>' + info.name + '<span class="hint">' + info.hint + '</span></span></span><span class="price">' + moneyText(info.price) + '</span>';
+      shopList.appendChild(btn);
+    }
+  }
+
+  function openShop() {
+    closeBag();
+    setShopStatus("");
+    renderShop();
+    if (shopPanel) shopPanel.classList.remove("hidden");
+  }
+
+  function closeShop() {
+    if (shopPanel) shopPanel.classList.add("hidden");
+  }
+
+  function buyShop(id) {
+    var info = ITEM_INFO[id];
+    if (!info || !info.price) return;
+    if (!bagHasSpace()) {
+      setShopStatus("Mochila llena");
+      return;
+    }
+    if (score < info.price) {
+      setShopStatus("Te faltan " + moneyText(info.price - score));
+      return;
+    }
+    score -= info.price;
+    giveItem(id);
+    setShopStatus("Listo: " + info.name);
+    renderShop();
+    beep(700, 0.07, "square", 0.04);
+  }
+
   function useBagItem(i) {
     var id = inventory[i];
+    var spec;
     if (!id) return;
     if (id === "heart") {
       if (lifePoints >= MAX_LIVES * 100) return;
@@ -502,6 +614,22 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       renderBag();
       beep(520, 0.08, "square", 0.04);
       return;
+    }
+    if (id === "shield") {
+      shieldCharges += 1;
+      inventory[i] = null;
+      renderBag();
+      beep(880, 0.07, "square", 0.04);
+      return;
+    }
+    if (id === "wide") {
+      paddleBonus = Math.min(72, paddleBonus + 36);
+      spec = LEVELS[level - 1] || {};
+      paddle.w = (spec.paddleW || 114) + paddleBonus;
+      paddle.x = clamp(paddle.x, 8 + paddle.w / 2, W - 8 - paddle.w / 2);
+      inventory[i] = null;
+      renderBag();
+      beep(480, 0.07, "square", 0.04);
     }
   }
 
@@ -528,7 +656,9 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       level: level,
       score: score,
       lifePoints: lifePoints,
-      inventory: inventory.slice()
+      inventory: inventory.slice(),
+      shieldCharges: shieldCharges,
+      paddleBonus: paddleBonus
     };
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -556,6 +686,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     level = Math.max(1, Math.min(MAX_LEVELS, data.level | 0));
     score = Math.max(0, data.score | 0);
     lifePoints = Math.max(0, data.lifePoints | 0);
+    shieldCharges = Math.max(0, data.shieldCharges | 0);
+    paddleBonus = Math.max(0, data.paddleBonus | 0);
     syncLives();
     next = emptyInv();
     if (data.inventory && data.inventory.length) {
@@ -770,7 +902,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     heartDroppedThisLevel = false;
     partBreaksThisLevel = 0;
     heartDropOnBreak = 2 + ((Math.random() * 5) | 0);
-    paddle.w = spec.paddleW || 114;
+    paddle.w = (spec.paddleW || 114) + paddleBonus;
     ball.speed = spec.speed || 330;
     spawnRobot();
     stickBall();
@@ -799,6 +931,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     paddle.x = W / 2;
     paddle.vx = 0;
     inventory = emptyInv();
+    shieldCharges = 0;
+    paddleBonus = 0;
     giveItem("heart");
     shuffleBgs();
     loadLevel(START_LEVEL);
@@ -874,6 +1008,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     refreshContBtn();
     if (saveBtn && nowMs() > saveFlashT) saveBtn.textContent = "Guardar";
     closeBag();
+    closeShop();
   }
 
   function hideOverlay() {
@@ -893,6 +1028,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     state = "play";
     hideOverlay();
     closeBag();
+    closeShop();
     beep(620, 0.08, "square", 0.05);
   }
 
@@ -927,6 +1063,12 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   }
 
   function loseLifePoints(n, resetBall, hx, hy) {
+    if (!resetBall && shieldCharges > 0) {
+      shieldCharges -= 1;
+      spawnParticles(hx != null ? hx : paddle.x, hy != null ? hy : PADDLE_Y, "#5ce1ff", 14);
+      beep(980, 0.08, "square", 0.045);
+      return;
+    }
     lifePoints -= n;
     if (lifePoints < 0) lifePoints = 0;
     syncLives();
@@ -2761,6 +2903,12 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       ctx.fillStyle = "#ffe066";
       ctx.fillText("x5", 140, 17);
     }
+    if (shieldCharges > 0) {
+      ctx.textAlign = "right";
+      ctx.font = "700 14px Segoe UI, Helvetica Neue, sans-serif";
+      ctx.fillStyle = "#5ce1ff";
+      ctx.fillText("◈" + shieldCharges, W - 18 - shown * 20 - 10, 17);
+    }
     if (state === "play" && ball.stuck) {
       ctx.textAlign = "center";
       ctx.font = "600 13px Segoe UI, Helvetica Neue, sans-serif";
@@ -3125,7 +3273,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   window.arkanoidStart = confirmOverlay;
   ovBtn.addEventListener("pointerdown", confirmOverlay);
   overlay.addEventListener("pointerdown", function (e) {
-    if (e.target.closest("#bag-btn, #save-btn, #cont-btn, #bag-panel, .tool-btn, .slot")) return;
+    if (e.target.closest("#bag-btn, #shop-btn, #save-btn, #cont-btn, #bag-panel, #shop-panel, .tool-btn, .slot, .shop-item")) return;
     confirmOverlay(e);
   });
   if (bagBtn) {
@@ -3133,6 +3281,29 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       e.preventDefault();
       e.stopPropagation();
       openBag();
+    });
+  }
+  if (shopBtn) {
+    shopBtn.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openShop();
+    });
+  }
+  if (shopClose) {
+    shopClose.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeShop();
+    });
+  }
+  if (shopList) {
+    shopList.addEventListener("pointerdown", function (e) {
+      var btn = e.target.closest(".shop-item");
+      e.preventDefault();
+      e.stopPropagation();
+      if (!btn) return;
+      buyShop(btn.getAttribute("data-id"));
     });
   }
   if (saveBtn) {
@@ -3150,6 +3321,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       state = "play";
       hideOverlay();
       closeBag();
+      closeShop();
       lastTs = 0;
       beep(620, 0.08, "square", 0.05);
     });
