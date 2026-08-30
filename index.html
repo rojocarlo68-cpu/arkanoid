@@ -540,6 +540,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var bombsReady = 0;
   var magnetLeft = 0;
   var playerBombs = [];
+  var dirtMarks = [];
+  var dirtAcc = 0;
 
   function emptyInv() {
     return [null, null, null, null, null];
@@ -985,6 +987,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     debris = [];
     smokePuffs = [];
     heartDrops = [];
+    dirtMarks = [];
+    dirtAcc = 0;
     bombs = [];
     shots = [];
     playerBombs = [];
@@ -1198,12 +1202,46 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     beep(660, 0.1, "square", 0.05);
   }
 
+  function splashSand(x, y, n) {
+    var i, col;
+    if (level < 8) return;
+    n = n || 5;
+    while (particles.length > 90) particles.shift();
+    for (i = 0; i < n; i++) {
+      col = Math.random() < 0.5 ? "#d2b48c" : "#c4a36a";
+      particles.push({
+        x: x + (Math.random() - 0.5) * 10,
+        y: y + (Math.random() - 0.5) * 6,
+        vx: (Math.random() - 0.5) * 140,
+        vy: -30 - Math.random() * 90,
+        life: 0.28 + Math.random() * 0.25,
+        color: col
+      });
+    }
+  }
+
+  function markDirt(x, y) {
+    if (level < 8) return;
+    dirtMarks.push({
+      x: x + (Math.random() - 0.5) * 3,
+      y: y + 2 + (Math.random() - 0.5) * 3,
+      w: 5 + Math.random() * 7,
+      h: 2.2 + Math.random() * 2.4,
+      rot: (Math.random() - 0.5) * 0.6,
+      life: 0.55 + Math.random() * 0.35,
+      maxLife: 0.9,
+      col: Math.random() < 0.5 ? "rgba(140,100,55,0.45)" : "rgba(168,124,70,0.4)"
+    });
+    if (dirtMarks.length > 48) dirtMarks.shift();
+  }
+
   function bouncePaddle() {
     if (magnetLeft > 0) {
       magnetLeft -= 1;
       stickBall();
       spawnParticles(paddle.x, PADDLE_Y, "#7ab8ff", 12);
       beep(640, 0.07, "sine", 0.045);
+      splashSand(paddle.x, PADDLE_Y, 7);
       return;
     }
     var half = paddle.w / 2;
@@ -1222,6 +1260,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     ball.y = PADDLE_Y - BALL_R - 0.5;
     combo = 0;
     beep(220 + Math.abs(hit) * 180, 0.05, "square", 0.04);
+    splashSand(ball.x, PADDLE_Y, 8);
   }
 
   function hitBrick(br) {
@@ -3116,15 +3155,6 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     armor = enemyArmorImg();
     circuits = enemyCircuitsImg();
     if (robot.alive) {
-      ctx.save();
-      try {
-        ctx.fillStyle = "rgba(0,0,0,0.28)";
-        ctx.beginPath();
-        ctx.arc(robot.x + robot.w / 2, robot.y + robot.h - 4, Math.max(4, robot.w * 0.22), 0, Math.PI * 2);
-        ctx.fill();
-      } catch (errSh) {
-      }
-      ctx.restore();
       if (robot.kind === "fighter" || robot.kind === "carrier" || (robot.kind === "tank" && !gfxReady(armor))) {
         try {
           drawRobotSilhouette();
@@ -3346,6 +3376,13 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     var s;
     var left, right, top;
 
+    dirtAcc += dt;
+    if (level >= 8 && dirtAcc > 0.028) {
+      dirtAcc = 0;
+      markDirt(ball.x, ball.y);
+      if (Math.random() < 0.35) splashSand(ball.x, ball.y, 2);
+    }
+
     for (s = 0; s < steps; s++) {
       ball.x += ball.vx * sdt;
       ball.y += ball.vy * sdt;
@@ -3434,6 +3471,11 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       p.life -= dt;
       p.y -= 36 * dt;
       if (p.life <= 0) floaters.splice(i, 1);
+    }
+    for (i = dirtMarks.length - 1; i >= 0; i--) {
+      p = dirtMarks[i];
+      p.life -= dt;
+      if (p.life <= 0) dirtMarks.splice(i, 1);
     }
   }
 
@@ -3825,22 +3867,46 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     var g;
     ctx.save();
     if (level >= 8) {
-      ctx.shadowColor = magnetLeft > 0 ? "#7ab8ff" : "#c4a36a";
-      ctx.shadowBlur = magnetLeft > 0 ? 18 : 10;
-      roundRect(x, PADDLE_Y, paddle.w, PADDLE_H, 4);
+      var k, gx;
+      ctx.shadowColor = magnetLeft > 0 ? "#7ab8ff" : "#8a5a28";
+      ctx.shadowBlur = magnetLeft > 0 ? 16 : 8;
+      roundRect(x, PADDLE_Y, paddle.w, PADDLE_H, 5);
       g = ctx.createLinearGradient(x, PADDLE_Y, x, PADDLE_Y + PADDLE_H);
-      g.addColorStop(0, "#c8b48a");
-      g.addColorStop(0.45, "#6a6a48");
-      g.addColorStop(1, "#3a3428");
+      g.addColorStop(0, "#f0d9a8");
+      g.addColorStop(0.35, "#d4a05a");
+      g.addColorStop(0.7, "#b07838");
+      g.addColorStop(1, "#7a4a20");
       ctx.fillStyle = g;
       ctx.fill();
       ctx.restore();
-      ctx.fillStyle = "rgba(90, 70, 40, 0.55)";
-      roundRect(x + 8, PADDLE_Y + 3, paddle.w - 16, 3, 1);
+      ctx.save();
+      ctx.beginPath();
+      roundRect(x, PADDLE_Y, paddle.w, PADDLE_H, 5);
+      ctx.clip();
+      ctx.strokeStyle = "rgba(90, 48, 18, 0.35)";
+      ctx.lineWidth = 1;
+      for (k = 0; k < 5; k++) {
+        gx = x + 8 + k * (paddle.w - 16) / 4;
+        ctx.beginPath();
+        ctx.moveTo(gx, PADDLE_Y + 1);
+        ctx.lineTo(gx + 6, PADDLE_Y + PADDLE_H - 1);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(90, 50, 20, 0.45)";
+      ctx.beginPath();
+      ctx.ellipse(x + paddle.w * 0.28, PADDLE_Y + PADDLE_H * 0.55, 3.2, 2.1, 0.3, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#2a2418";
-      ctx.fillRect(x + 4, PADDLE_Y + PADDLE_H - 3, 6, 3);
-      ctx.fillRect(x + paddle.w - 10, PADDLE_Y + PADDLE_H - 3, 6, 3);
+      ctx.beginPath();
+      ctx.ellipse(x + paddle.w * 0.72, PADDLE_Y + PADDLE_H * 0.4, 2.4, 1.6, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 236, 200, 0.55)";
+      roundRect(x + 8, PADDLE_Y + 2, paddle.w - 16, 2.4, 1);
+      ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = "#5a3414";
+      ctx.lineWidth = 1.4;
+      roundRect(x + 0.5, PADDLE_Y + 0.5, paddle.w - 1, PADDLE_H - 1, 5);
+      ctx.stroke();
       return;
     }
     ctx.shadowColor = magnetLeft > 0 ? "#7ab8ff" : "#5ce1ff";
@@ -3856,6 +3922,24 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     ctx.fillStyle = "rgba(255,255,255,0.65)";
     roundRect(x + 10, PADDLE_Y + 3, paddle.w - 20, 3, 2);
     ctx.fill();
+  }
+
+  function drawDirtTrail() {
+    var i, p, a;
+    for (i = 0; i < dirtMarks.length; i++) {
+      p = dirtMarks[i];
+      a = Math.max(0, p.life / (p.maxLife || 0.7));
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot || 0);
+      ctx.fillStyle = p.col;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.w * 0.5, p.h * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawBall() {
@@ -3920,6 +4004,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       try { drawPlayerBombs(); } catch (e) { noteArkErr("drawPlayerBombs", e); }
       try { drawPaddle(); } catch (e) { noteArkErr("drawPaddle", e); }
       try { drawBarrier(); } catch (e) { noteArkErr("drawBarrier", e); }
+      try { drawDirtTrail(); } catch (e) { noteArkErr("drawDirtTrail", e); }
       try { drawBall(); } catch (e) { noteArkErr("drawBall", e); }
       try { drawFx(); } catch (e) { noteArkErr("drawFx", e); }
       try { drawHud(); } catch (e) { noteArkErr("drawHud", e); }
