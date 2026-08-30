@@ -1397,9 +1397,9 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   var CARRIER_HIT_ORDER = ["bridge","deck","sensor","pipes","hangar","keel"];
   var CARRIER_DRAW_ORDER = ["keel","pipes","hangar","deck","sensor","bridge"];
   var CARRIER_BODY_IDS = ["bridge","deck","pipes","hangar","sensor","keel"];
-  var TANK_W = 256;
-  var TANK_H = 384;
-  var TANK_BASE_Y = 42;
+  var TANK_W = 86;
+  var TANK_H = 128;
+  var TANK_BASE_Y = 72;
   var TANK_PART_DEFS = [
     { id: "turret", fx: 0.26, fy: 0.00, fw: 0.48, fh: 0.36, head: true },
     { id: "hull",   fx: 0.16, fy: 0.30, fw: 0.68, fh: 0.38 },
@@ -1714,7 +1714,10 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     bindKeyedImage(car, function (c) { carrierArmorImg = c || car; });
     car.src = CARRIER_ARMOR_URL;
     var tn = new Image();
-    bindKeyedImage(tn, function (c) { tankArmorImg = c || tn; });
+    tn.onload = function () {
+      var baked = bakeImageToCanvas(tn);
+      tankArmorImg = baked || tn;
+    };
     tn.src = TANK_ARMOR_URL;
   }
 
