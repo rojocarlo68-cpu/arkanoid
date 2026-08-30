@@ -3021,7 +3021,21 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
                 try { drawDentsOnly(r, part.hits, seed); } catch (errDent) {}
               }
             } else {
-              try { drawGutsOverlay(r, seed, part.hits); } catch (errGuts) {}
+              if (gfxReady(circuits)) {
+                try {
+                  var hole = { x: r.x + 4, y: r.y + 4, w: Math.max(4, r.w - 8), h: Math.max(4, r.h - 8) };
+                  ctx.save();
+                  ctx.beginPath();
+                  if (typeof roundRect === "function") {
+                    roundRect(hole.x, hole.y, hole.w, hole.h, 5);
+                  } else {
+                    ctx.rect(hole.x, hole.y, hole.w, hole.h);
+                  }
+                  ctx.clip();
+                  drawRobotImageClipped(circuits, hole);
+                  ctx.restore();
+                } catch (errCirc) {}
+              }
             }
           }
         } catch (errPart) {
