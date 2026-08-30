@@ -499,15 +499,17 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     heart: { name: "Corazón", hint: "+1 vida", glyph: "♥", price: 400, tint: "#ff4d8d" },
     shield: { name: "Escudo", hint: "Barrera 3 golpes", glyph: "▬", price: 350, tint: "#c8d0d8" },
     wide: { name: "Paleta XL", hint: "Paleta más ancha", glyph: "▬", price: 300, tint: "#ffe066" },
-    bomb: { name: "Bomba", hint: "50% daño · úsala y luego clic", glyph: "●", price: 700, tint: "#ff6a2a" }
+    bomb: { name: "Bomba", hint: "50% daño · úsala y luego clic", glyph: "●", price: 700, tint: "#ff6a2a" },
+    magnet: { name: "Imán", hint: "La bola se pega 5 tiros", glyph: "∩", price: 450, tint: "#7ab8ff" }
   };
-  var SHOP_IDS = ["heart", "shield", "wide", "bomb"];
+  var SHOP_IDS = ["heart", "shield", "wide", "bomb", "magnet"];
   var inventory = [null, null, null, null, null];
   var saveFlashT = 0;
   var barrierHP = 0;
   var BARRIER_H = 12;
   var paddleBonus = 0;
   var bombsReady = 0;
+  var magnetLeft = 0;
   var playerBombs = [];
 
   function emptyInv() {
@@ -671,6 +673,13 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       inventory[i] = null;
       renderBag();
       beep(180, 0.07, "square", 0.04);
+      return;
+    }
+    if (id === "magnet") {
+      magnetLeft = 5;
+      inventory[i] = null;
+      renderBag();
+      beep(720, 0.08, "sine", 0.04);
     }
   }
 
@@ -700,7 +709,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       inventory: inventory.slice(),
       barrierHP: barrierHP,
       paddleBonus: paddleBonus,
-      bombsReady: bombsReady
+      bombsReady: bombsReady,
+      magnetLeft: magnetLeft
     };
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -731,6 +741,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     barrierHP = Math.max(0, Math.min(3, data.barrierHP | 0));
     paddleBonus = Math.max(0, data.paddleBonus | 0);
     bombsReady = Math.max(0, data.bombsReady | 0);
+    magnetLeft = Math.max(0, Math.min(5, data.magnetLeft | 0));
     playerBombs = [];
     syncLives();
     next = emptyInv();
@@ -981,6 +992,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
     barrierHP = 0;
     paddleBonus = 0;
     bombsReady = 0;
+    magnetLeft = 0;
     playerBombs = [];
     giveItem("heart");
     shuffleBgs();
@@ -1156,6 +1168,13 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   }
 
   function bouncePaddle() {
+    if (magnetLeft > 0) {
+      magnetLeft -= 1;
+      stickBall();
+      spawnParticles(paddle.x, PADDLE_Y, "#7ab8ff", 12);
+      beep(640, 0.07, "sine", 0.045);
+      return;
+    }
     var half = paddle.w / 2;
     var hit = clamp((ball.x - paddle.x) / half, -1, 1);
     var maxA = Math.PI / 3;
@@ -3426,6 +3445,12 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
       ctx.fillStyle = "#ff9a4a";
       ctx.fillText("BOMBA x" + bombsReady, 140, 17);
     }
+    if (magnetLeft > 0) {
+      ctx.textAlign = "left";
+      ctx.font = "700 12px Segoe UI, Helvetica Neue, sans-serif";
+      ctx.fillStyle = "#7ab8ff";
+      ctx.fillText("IMÁN " + magnetLeft, bombsReady > 0 ? 232 : 140, 17);
+    }
     if (barrierHP > 0) {
       ctx.textAlign = "right";
       ctx.font = "700 12px Segoe UI, Helvetica Neue, sans-serif";
@@ -3668,8 +3693,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   function drawPaddle() {
     var x = paddle.x - paddle.w / 2;
     ctx.save();
-    ctx.shadowColor = "#5ce1ff";
-    ctx.shadowBlur = 16;
+    ctx.shadowColor = magnetLeft > 0 ? "#7ab8ff" : "#5ce1ff";
+    ctx.shadowBlur = magnetLeft > 0 ? 22 : 16;
     roundRect(x, PADDLE_Y, paddle.w, PADDLE_H, 7);
     var g = ctx.createLinearGradient(x, PADDLE_Y, x, PADDLE_Y + PADDLE_H);
     g.addColorStop(0, "#e9fbff");
